@@ -1,0 +1,12 @@
+{
+  "mcp_key_user_test": {
+    "role": "user",
+    "description": "Tài khoản User thường (user1@gmail.com)",
+    "access_token": "sk_user_0468d3872545a0d3a32accf26de87463"
+  },
+  "mcp_key_admin_test": {
+    "role": "admin",
+    "description": "Tài khoản Quản trị viên (admin@sportshop.vn)",
+    "access_token": "sk_admin_130f18fa2ddf0b6fbab3e141406b7313"
+  }
+}
