@@ -1,14 +1,38 @@
 import os
 import sys
-import json
 
 # Đảm bảo thư mục gốc dự án nằm trong sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# pyrefly: ignore [missing-import]
 from services.web_shop_client import web_shop_client
+# pyrefly: ignore [missing-import]
+from auth.oauth_provider import set_active_role, get_active_role
 
 def register_web_shop_tools(mcp):
-    """Đăng ký các MCP Tools tương tác với Web Shop API (Tự động nhận diện Role từ môi trường)."""
+    """Đăng ký các MCP Tools cho 1 MCP Server duy nhất (Hỗ trợ đổi Role và tự nhận diện động)."""
+
+    # -------------------------------------------------------------
+    # 0. MANAGEMENT TOOL CHO SINGLE MCP SERVER INSTANCE
+    # -------------------------------------------------------------
+    @mcp.tool()
+    def switch_mcp_role(role: str) -> str:
+        """Chuyển đổi Role cho MCP Server hiện tại (Cho phép 'admin' hoặc 'user').
+
+        Args:
+            role: Tên role cần chuyển ('admin' hoặc 'user').
+        """
+        role_clean = role.lower().strip()
+        if role_clean not in ["admin", "user"]:
+            return f"Lỗi: Role '{role}' không hợp lệ. Chỉ chấp nhận 'admin' hoặc 'user'."
+        set_active_role(role_clean)
+        return f"Thành công: Đã chuyển Role của MCP Server hiện tại sang '{role_clean}'. Các câu lệnh tiếp theo sẽ sử dụng quyền này."
+
+    @mcp.tool()
+    def get_current_mcp_status() -> str:
+        """Xem trạng thái Role hiện tại và quyền hạn của MCP Server."""
+        current_role = get_active_role()
+        return f"[MCP Server Status]\nRole hiện tại: '{current_role}'\nĐã sẵn sàng nhận các câu lệnh không cần api_key."
 
     # -------------------------------------------------------------
     # 1. TÁC VỤ DÀNH CHO USER THƯỜNG / CÔNG KHAI (USER ROLE)
@@ -16,12 +40,7 @@ def register_web_shop_tools(mcp):
 
     @mcp.tool()
     def get_web_shop_products(category: str = None, api_key: str = None) -> str:
-        """Lấy danh sách tất cả sản phẩm từ Web Shop.
-
-        Args:
-            category: (Tùy chọn) Lọc sản phẩm theo danh mục.
-            api_key: (Tùy chọn) Override API Key/Token nếu không dùng môi trường mặc định.
-        """
+        """Lấy danh sách tất cả sản phẩm từ Web Shop."""
         params = {}
         if category:
             params["category"] = category
@@ -29,12 +48,7 @@ def register_web_shop_tools(mcp):
 
     @mcp.tool()
     def get_product_detail(product_id: str, api_key: str = None) -> str:
-        """Xem thông tin chi tiết một sản phẩm theo ID.
-
-        Args:
-            product_id: Mã ID sản phẩm cần xem.
-            api_key: (Tùy chọn) Override API Key/Token.
-        """
+        """Xem thông tin chi tiết một sản phẩm theo ID."""
         return web_shop_client.request("GET", f"/products/{product_id}", api_key=api_key, required_scope="products:read")
 
     @mcp.tool()
@@ -44,22 +58,12 @@ def register_web_shop_tools(mcp):
 
     @mcp.tool()
     def get_order_detail(order_id: str, api_key: str = None) -> str:
-        """Xem chi tiết một đơn hàng.
-
-        Args:
-            order_id: Mã đơn hàng cần xem.
-            api_key: (Tùy chọn) Override API Key/Token.
-        """
+        """Xem chi tiết một đơn hàng."""
         return web_shop_client.request("GET", f"/orders/{order_id}", api_key=api_key, required_scope="orders:read_own")
 
     @mcp.tool()
     def create_order(items_json_str: str, api_key: str = None) -> str:
-        """Tạo đơn hàng mới trên Web Shop.
-
-        Args:
-            items_json_str: Chuỗi JSON danh sách sản phẩm (ví dụ: '[{"product_id": "P01", "quantity": 2}]').
-            api_key: (Tùy chọn) Override API Key/Token.
-        """
+        """Tạo đơn hàng mới trên Web Shop."""
         try:
             items_data = json.loads(items_json_str)
         except Exception:
@@ -97,17 +101,7 @@ def register_web_shop_tools(mcp):
         image: str = "",
         api_key: str = None
     ) -> str:
-        """[ADMIN ONLY] Quản trị viên thêm một sản phẩm mới vào Database.
-
-        Args:
-            name: Tên sản phẩm.
-            price: Giá bán sản phẩm.
-            category: Danh mục sản phẩm.
-            brand: Thương hiệu.
-            description: (Tùy chọn) Mô tả chi tiết.
-            image: (Tùy chọn) URL hình ảnh.
-            api_key: (Tùy chọn) Override API Key/Token.
-        """
+        """[ADMIN ONLY] Quản trị viên thêm một sản phẩm mới vào Database."""
         payload = {
             "name": name,
             "price": price,
