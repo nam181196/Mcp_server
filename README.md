@@ -1,111 +1,70 @@
-# 🛒 Web Shop MCP Server Proxy - Hướng Dẫn Chi Tiết Từ A Đến Z
+# WebShop MCP Server (Proxy & OAuth-enabled)
 
-Tài liệu này ghi lại **từng bước chi tiết** từ quá trình khởi tạo môi trường, cài đặt thư viện, xây dựng cấu trúc dự án, lập trình các module core proxy đến cách khởi chạy và kiểm thử MCP Server kết nối với Web Shop Backend API.
-
----
-
-## 📌 BƯỚC 1: KHỞI TẠO DỰ ÁN & MÔI TRƯỜNG ẢO (VIRTUAL ENVIRONMENT)
-
-1. **Di chuyển vào thư mục dự án**:
-   ```bash
-   cd "/Users/nam/Desktop/MCP server"
-   ```
-
-2. **Tạo Môi trường ảo Python (`venv`) mới**:
-   ```bash
-   python3 -m venv venv
-   ```
-
-3. **Kích hoạt Môi trường ảo**:
-   - Trên macOS / Linux:
-     ```bash
-     source venv/bin/activate
-     ```
+MCP Server đóng vai trò Gateway kết nối MCP Client (Cursor, Claude Desktop, ChatGPT) tới **WebShop Backend API** (Express.js / Node.js). 
+Hỗ trợ cơ chế phân quyền RBAC (Role-Based Access Control) cho User và Admin dựa trên OAuth JWT hoặc API Key.
 
 ---
 
-## 📌 BƯỚC 2: CÀI ĐẶT CÁC THƯ VIỆN CẦN THIẾT (DOWNLOAD & INSTALL DEPENDENCIES)
+## 🛠 Cấu hình sử dụng trên MCP Client (Cursor / Claude Desktop)
 
-1. **Tạo tệp `requirements.txt`**:
-   ```text
-   fastmcp>=0.1.0
-   psutil>=5.9.0
-   httpx>=0.27.0
-   ```
+Người dùng không cần truyền thủ công `api_key` trong mỗi câu prompt. Thay vào đó, bạn cấu hình 2 instance MCP Server trong file `mcp.json` tương ứng với từng Role:
 
-2. **Chạy lệnh cài đặt thư viện**:
-   ```bash
-   ./venv/bin/pip install -r requirements.txt
-   ```
-
----
-
-## 📌 BƯỚC 3: XÂY DỰNG CẤU TRÚC THƯ MỤC DỰ ÁN (PROJECT STRUCTURE)
-
-Tạo cấu trúc các gói package chuyên nghiệp như sau:
-```text
-MCP server/
-├── server.py                   # Entry point chính của MCP Server (STDIO & SSE)
-├── requirements.txt            # Thư viện phụ thuộc (fastmcp, httpx, psutil)
-├── README.md                   # Hướng dẫn chi tiết từng bước làm
-├── config/
-│   ├── __init__.py
-│   ├── web_shop_config.py      # Cấu hình Web Shop Base URL & tra cứu API Key
-│   └── api_key_map.json        # Ánh xạ API Key MCP Client -> Access Token Web Shop
-├── services/
-│   ├── __init__.py
-│   └── web_shop_client.py      # HTTP Client gửi request kèm Bearer Token & format lỗi
-└── tools/
-    ├── __init__.py
-    └── web_shop_tools.py       # Đăng ký các MCP Tools (User Role & Admin Role)
-```
-
----
-
-## 📌 BƯỚC 4: LẬP TRÌNH CÁC MODULE CORE PROXY
-
-### 1. Cấu hình Ánh Xạ API Key (`config/web_shop_config.py` & `config/api_key_map.json`)
-- Ánh xạ `mcp_key_user_test` ➔ Web Shop User Access Token (Quyền User).
-- Ánh xạ `mcp_key_admin_test` ➔ Web Shop Admin Access Token (Quyền Admin).
-
-### 2. Service Gọi Web Shop API (`services/web_shop_client.py`)
-- Nhận `api_key` từ MCP Client.
-- Gửi HTTP Request sang Web Shop Backend kèm header `Authorization: Bearer <Web_Shop_Access_Token>`.
-- Chuyển đổi phản hồi hoặc mã lỗi HTTP (`401 Unauthorized`, `403 Forbidden`, `404 Not Found`) từ Web Shop Backend thành thông điệp MCP Error thân thiện.
-
-### 3. Đăng ký MCP Tools (`tools/web_shop_tools.py`)
-- **Tác vụ User thường**: `get_web_shop_products`, `get_product_detail`, `get_my_orders`, `get_order_detail`, `create_order`.
-- **Tác vụ Admin**: `admin_get_all_orders`, `admin_update_order_status`, `admin_get_all_users`.
-
-### 4. Entry Point Khởi Chạy (`server.py`)
-- Đăng ký các Tools vào FastMCP.
-- Hỗ trợ truyền tải giao thức qua `STDIO` và `Streamable HTTP (SSE)`.
-
----
-
-## 📌 BƯỚC 5: HƯỚNG DẪN KHỞI CHẠY & KIỂM THỬ (RUN & TEST)
-
-### 1. Khởi chạy mặc định giao thức STDIO (Cho Claude Desktop / Cursor):
-```bash
-./venv/bin/python3 server.py
-```
-
-### 2. Khởi chạy giao thức Streamable HTTP (SSE) (Cho Remote Client / Web):
-```bash
-MCP_TRANSPORT=sse MCP_PORT=8000 ./venv/bin/python3 server.py
-```
-Server SSE sẽ lắng nghe tại địa chỉ: `http://localhost:8000/sse`
-
-### 3. Cấu hình Claude Desktop (`claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "web-shop-mcp-server": {
-      "command": "/Users/nam/Desktop/MCP server/venv/bin/python3",
+    "SportShop_Admin": {
+      "command": "/Users/nam/Desktop/MCP_server/venv_new/bin/python3",
       "args": [
-        "/Users/nam/Desktop/MCP server/server.py"
-      ]
+        "/Users/nam/Desktop/MCP_server/server.py"
+      ],
+      "env": {
+        "MCP_API_KEY": "mcp_key_admin_test"
+      }
+    },
+    "SportShop_User": {
+      "command": "/Users/nam/Desktop/MCP_server/venv_new/bin/python3",
+      "args": [
+        "/Users/nam/Desktop/MCP_server/server.py"
+      ],
+      "env": {
+        "MCP_API_KEY": "mcp_key_user_test"
+      }
     }
   }
 }
+```
+
+---
+
+## 💬 Ví dụ câu lệnh Prompt chuẩn (Không cần truyền `api_key`)
+
+### Dành cho Admin (`SportShop_Admin`):
+- *"Lấy tất cả đơn hàng trong hệ thống giúp tôi."*
+- *"Xem thống kê doanh thu và báo cáo tổng quan đơn hàng."*
+- *"Thêm sản phẩm mới tên 'Giày Chạy Bộ Nike Air Zoom', giá 2500000, thuộc danh mục 'Giày', thương hiệu 'Nike'."*
+
+### Dành cho User (`SportShop_User`):
+- *"Cho tôi xem danh sách sản phẩm đang bán thuộc danh mục Giày."*
+- *"Xem danh sách các đơn hàng cá nhân của tôi."*
+- *"Tạo đơn hàng mua 2 sản phẩm ID P01."*
+
+---
+
+## 🏗 Kiến trúc thư mục dự án
+
+```text
+MCP_server/
+├── auth/
+│   ├── oauth_provider.py      ← Xác thực Token & fallback tự lấy MCP_API_KEY từ env
+│   ├── user_service.py        ← Ánh xạ tài khoản OAuth sang WebShop Backend Token
+│   ├── token_service.py       ← Xác minh & đọc JWT Token
+│   └── scopes.py              ← Định nghĩa & kiểm tra Scope cho Role (admin / user)
+├── config/
+│   ├── auth_config.py         ← Cấu hình Issuer & mặc định Scopes
+│   └── web_shop_config.py     ← URL Backend & API Key mappings
+├── services/
+│   └── web_shop_client.py     ← Client gửi HTTP Request tới WebShop Backend API
+├── tools/
+│   └── web_shop_tools.py      ← Đăng ký MCP Tools (api_key là tùy chọn)
+└── server.py                  ← Server entrypoint (STDIO / HTTP / SSE)
 ```

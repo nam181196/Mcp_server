@@ -8,38 +8,58 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.web_shop_client import web_shop_client
 
 def register_web_shop_tools(mcp):
-    """Đăng ký các MCP Tools cốt lõi tương tác với Web Shop API."""
+    """Đăng ký các MCP Tools tương tác với Web Shop API (Tự động nhận diện Role từ môi trường)."""
 
     # -------------------------------------------------------------
     # 1. TÁC VỤ DÀNH CHO USER THƯỜNG / CÔNG KHAI (USER ROLE)
     # -------------------------------------------------------------
 
     @mcp.tool()
-    def get_web_shop_products(api_key: str, category: str = None) -> str:
-        """Lấy danh sách tất cả sản phẩm từ Web Shop."""
+    def get_web_shop_products(category: str = None, api_key: str = None) -> str:
+        """Lấy danh sách tất cả sản phẩm từ Web Shop.
+
+        Args:
+            category: (Tùy chọn) Lọc sản phẩm theo danh mục.
+            api_key: (Tùy chọn) Override API Key/Token nếu không dùng môi trường mặc định.
+        """
         params = {}
         if category:
             params["category"] = category
         return web_shop_client.request("GET", "/products", api_key=api_key, required_scope="products:read", params=params)
 
     @mcp.tool()
-    def get_product_detail(api_key: str, product_id: str) -> str:
-        """Xem thông tin chi tiết một sản phẩm theo ID."""
+    def get_product_detail(product_id: str, api_key: str = None) -> str:
+        """Xem thông tin chi tiết một sản phẩm theo ID.
+
+        Args:
+            product_id: Mã ID sản phẩm cần xem.
+            api_key: (Tùy chọn) Override API Key/Token.
+        """
         return web_shop_client.request("GET", f"/products/{product_id}", api_key=api_key, required_scope="products:read")
 
     @mcp.tool()
-    def get_my_orders(api_key: str) -> str:
+    def get_my_orders(api_key: str = None) -> str:
         """Xem danh sách đơn hàng cá nhân của tôi."""
         return web_shop_client.request("GET", "/my-orders", api_key=api_key, required_scope="orders:read_own")
 
     @mcp.tool()
-    def get_order_detail(api_key: str, order_id: str) -> str:
-        """Xem chi tiết một đơn hàng."""
+    def get_order_detail(order_id: str, api_key: str = None) -> str:
+        """Xem chi tiết một đơn hàng.
+
+        Args:
+            order_id: Mã đơn hàng cần xem.
+            api_key: (Tùy chọn) Override API Key/Token.
+        """
         return web_shop_client.request("GET", f"/orders/{order_id}", api_key=api_key, required_scope="orders:read_own")
 
     @mcp.tool()
-    def create_order(api_key: str, items_json_str: str) -> str:
-        """Tạo đơn hàng mới trên Web Shop."""
+    def create_order(items_json_str: str, api_key: str = None) -> str:
+        """Tạo đơn hàng mới trên Web Shop.
+
+        Args:
+            items_json_str: Chuỗi JSON danh sách sản phẩm (ví dụ: '[{"product_id": "P01", "quantity": 2}]').
+            api_key: (Tùy chọn) Override API Key/Token.
+        """
         try:
             items_data = json.loads(items_json_str)
         except Exception:
@@ -53,31 +73,41 @@ def register_web_shop_tools(mcp):
     # -------------------------------------------------------------
 
     @mcp.tool()
-    def admin_get_all_orders(api_key: str) -> str:
+    def admin_get_all_orders(api_key: str = None) -> str:
         """[ADMIN ONLY] Quản trị viên xem tất cả đơn hàng trong toàn bộ hệ thống."""
         return web_shop_client.request("GET", "/orders", api_key=api_key, required_scope="orders:read_all")
 
     @mcp.tool()
-    def admin_get_order_stats(api_key: str) -> str:
+    def admin_get_order_stats(api_key: str = None) -> str:
         """[ADMIN ONLY] Quản trị viên xem báo cáo thống kê doanh thu, số lượng đơn."""
         return web_shop_client.request("GET", "/orders/stats", api_key=api_key, required_scope="orders:stats")
 
     @mcp.tool()
-    def admin_get_all_users(api_key: str) -> str:
+    def admin_get_all_users(api_key: str = None) -> str:
         """[ADMIN ONLY] Quản trị viên xem danh sách tất cả tài khoản người dùng."""
         return web_shop_client.request("GET", "/users", api_key=api_key, required_scope="users:read_all")
 
     @mcp.tool()
     def admin_create_product(
-        api_key: str,
         name: str,
         price: float,
         category: str,
         brand: str,
         description: str = "",
-        image: str = ""
+        image: str = "",
+        api_key: str = None
     ) -> str:
-        """[ADMIN ONLY] Quản trị viên thêm một sản phẩm mới vào Database."""
+        """[ADMIN ONLY] Quản trị viên thêm một sản phẩm mới vào Database.
+
+        Args:
+            name: Tên sản phẩm.
+            price: Giá bán sản phẩm.
+            category: Danh mục sản phẩm.
+            brand: Thương hiệu.
+            description: (Tùy chọn) Mô tả chi tiết.
+            image: (Tùy chọn) URL hình ảnh.
+            api_key: (Tùy chọn) Override API Key/Token.
+        """
         payload = {
             "name": name,
             "price": price,
@@ -90,14 +120,14 @@ def register_web_shop_tools(mcp):
 
     @mcp.tool()
     def admin_update_product(
-        api_key: str,
         product_id: str,
         name: str = None,
         price: float = None,
         category: str = None,
         brand: str = None,
         description: str = None,
-        image: str = None
+        image: str = None,
+        api_key: str = None
     ) -> str:
         """[ADMIN ONLY] Quản trị viên cập nhật thông tin một sản phẩm."""
         payload = {}
@@ -111,6 +141,6 @@ def register_web_shop_tools(mcp):
         return web_shop_client.request("PUT", f"/products/{product_id}", api_key=api_key, required_scope="products:update", data=payload)
 
     @mcp.tool()
-    def admin_delete_product(api_key: str, product_id: str) -> str:
+    def admin_delete_product(product_id: str, api_key: str = None) -> str:
         """[ADMIN ONLY] Quản trị viên xoá một sản phẩm khỏi Database."""
         return web_shop_client.request("DELETE", f"/products/{product_id}", api_key=api_key, required_scope="products:delete")

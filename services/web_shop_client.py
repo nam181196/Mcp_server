@@ -21,15 +21,16 @@ class WebShopClient:
         self,
         method: str,
         endpoint: str,
-        api_key: str,
+        api_key: str = None,
         required_scope: str = None,
         data: dict = None,
         params: dict = None
     ) -> str:
         """
         Thực hiện HTTP Request tới Web Shop API sau khi xác thực và kiểm tra Scope từ OAuthProvider.
+        Nếu api_key là None, OAuthProvider sẽ tự động sử dụng MCP_API_KEY từ biến môi trường.
         """
-        # 1. Xác thực qua OAuthProvider
+        # 1. Xác thực qua OAuthProvider (Tự động lấy token nếu api_key=None)
         auth_result = oauth_provider.authenticate_request(api_key)
         if not auth_result.get("authenticated"):
             return f"Lỗi xác thực MCP (401 Unauthorized): {auth_result.get('error')}"
