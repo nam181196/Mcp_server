@@ -8,6 +8,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import httpx
 import json
 from config.web_shop_config import WEB_SHOP_BASE_URL
+from config.db_config import ENABLE_DB_FALLBACK
+from services.db_service import db_service
 from auth.oauth_provider import oauth_provider
 from auth.scopes import has_required_scope
 
@@ -49,7 +51,7 @@ class WebShopClient:
         url = f"{self.base_url}/api/{endpoint.lstrip('/')}"
 
         try:
-            with httpx.Client(timeout=15.0) as client:
+            with httpx.Client(timeout=5.0) as client:
                 response = client.request(
                     method=method.upper(),
                     url=url,
@@ -57,18 +59,34 @@ class WebShopClient:
                     json=data,
                     params=params
                 )
+                if response.status_code >= 500 and ENABLE_DB_FALLBACK and db_service.is_connected():
+                    fallback_res = db_service.handle_fallback_request(method, endpoint, data=data, params=params)
+                    return (
+                        f"[Fallback DB Mode - MongoDB Direct Connection]\n"
+                        f"Thông báo: Web Shop Backend API ({self.base_url}) trả về lỗi hệ thống ({response.status_code}).\n"
+                        f"Hệ thống đã tự động chuyển sang truy vấn trực tiếp Database MongoDB:\n\n"
+                        f"{fallback_res}"
+                    )
                 return self._format_response(response, endpoint)
 
-        except httpx.ConnectError:
+
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            if ENABLE_DB_FALLBACK and db_service.is_connected():
+                fallback_res = db_service.handle_fallback_request(method, endpoint, data=data, params=params)
+                return (
+                    f"[Fallback DB Mode - MongoDB Direct Connection]\n"
+                    f"Thông báo: Web Shop Backend API ({self.base_url}) không khả dụng ({type(e).__name__}).\n"
+                    f"Hệ thống đã tự động chuyển sang truy vấn trực tiếp Database MongoDB:\n\n"
+                    f"{fallback_res}"
+                )
             return (
                 f"Lỗi kết nối Web Shop (503 Service Unavailable):\n"
                 f"Không thể kết nối tới Web Shop Backend tại địa chỉ: {self.base_url}\n"
                 f"Vui lòng kiểm tra xem Web Shop Backend Server đã được khởi chạy chưa."
             )
-        except httpx.TimeoutException:
-            return f"Lỗi Web Shop (504 Gateway Timeout): Yêu cầu tới '{endpoint}' bị quá thời gian (timeout)."
         except Exception as e:
             return f"Lỗi không xác định khi kết nối Web Shop API: {str(e)}"
+
 
     def _format_response(self, response: httpx.Response, endpoint: str) -> str:
         status_code = response.status_code

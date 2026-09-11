@@ -8,13 +8,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fastmcp import FastMCP
 # pyrefly: ignore [missing-import]
 from tools.web_shop_tools import register_web_shop_tools
+from tools.db_tools import register_db_tools
 from config.auth_config import OAUTH_ISSUER, JWKS_URL
 
 # Khởi tạo FastMCP Server cốt lõi cho Web Shop Proxy API
 mcp = FastMCP("web-shop-mcp-server")
 
-# Đăng ký các Web Shop API Proxy Tools
+# Đăng ký các Web Shop API Proxy Tools và Direct Database Tools
 register_web_shop_tools(mcp)
+register_db_tools(mcp)
+
 
 # -----------------------------------------------------------------------------
 # OAUTH & OPENID DISCOVERY ENDPOINTS (Generic OAuth / Custom Provider)
